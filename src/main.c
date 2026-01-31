@@ -30,7 +30,8 @@ int main(void) {
     // Configure PF1 (Red LED) as output
     GPIO_PORTF_DIR_R |= (1 << 1);   // Set PF1 as output
     GPIO_PORTF_DEN_R |= (1 << 1);   // Enable digital function on PF1
-    GPIO_PORTF_DATA_R &= ~(1 << 1); // Initialize LED off
+    // Initialize LED off (using mask-based access at offset 0x3FC)
+    GPIO_PORTF_DATA_R &= ~(1 << 1);
     
     // Main loop - blink LED
     while (1) {

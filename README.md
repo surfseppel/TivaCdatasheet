@@ -18,17 +18,20 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
 
 ```
 .
-├── build.bat             # Windows build script
-├── flash.bat             # Windows flash script
+├── build.bat             # Build script for blink example
+├── build_adc.bat          # Build script for ADC example
+├── flash.bat              # Flash script for blink example
+├── flash_adc.bat          # Flash script for ADC example
 ├── src/
-│   ├── main.c           # Main application code
-│   ├── startup.c        # Startup code and vector table
-│   ├── system.c         # System initialization
-│   └── tm4c123gh6pm.ld  # Linker script
+│   ├── main.c            # Blink example
+│   ├── main_adc.c        # ADC and serial example
+│   ├── startup.c         # Startup code and vector table
+│   ├── system.c          # System initialization
+│   └── tm4c123gh6pm.ld   # Linker script
 ├── inc/
-│   └── tm4c123gh6pm.h   # Register definitions
+│   └── tm4c123gh6pm.h    # Register definitions
 └── docs/
-    └── tm4c123gh6pm.pdf # Datasheet
+    └── tm4c123gh6pm.pdf  # Datasheet
 ```
 
 ---
@@ -76,6 +79,50 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
 
 ---
 
+## Examples
+
+### Example 1: Blink LED
+
+Simple LED blinking example.
+
+**Build:**
+```powershell
+.\build.bat
+```
+
+**Flash:**
+```powershell
+.\flash.bat
+```
+
+**Result**: Red LED (PF1) blinks every 500ms
+
+### Example 2: ADC and Serial Monitor
+
+Reads analog input and sends to serial monitor.
+
+**Hardware Setup:**
+- Connect a potentiometer or analog sensor to **PE3 (AIN0)**
+- Connect one end to 3.3V, other end to GND, wiper to PE3
+
+**Build:**
+```powershell
+.\build_adc.bat
+```
+
+**Flash:**
+```powershell
+.\flash_adc.bat
+```
+
+**View Serial Output:**
+1. Open a serial monitor (e.g., PuTTY, Tera Term, or VS Code Serial Monitor extension)
+2. Set baud rate to **115200**
+3. Select the COM port (check Device Manager for "Stellaris Virtual COM Port")
+4. You should see ADC values (0-4095) printed every second
+
+**Result**: ADC values printed to serial monitor every second
+
 ## Building
 
 ### Using build.bat (Easiest - No Make Required)
@@ -89,11 +136,12 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
 
 3. **Build**:
    ```powershell
-   .\build.bat
+   .\build.bat          # For blink example
+   .\build_adc.bat      # For ADC example
    ```
 
 4. **Output**: Files will be in `build/` folder:
-   - `build/blink.bin` - Ready to flash
+   - `build/blink.bin` or `build/adc_example.bin` - Ready to flash
 
 ### Using Visual Studio Code
 
@@ -117,10 +165,13 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
 
 2. **Run flash script**:
    ```powershell
-   .\flash.bat
+   .\flash.bat          # For blink example
+   .\flash_adc.bat      # For ADC example
    ```
 
-3. **Done!** The board will reset and the red LED should start blinking.
+3. **Done!** 
+   - Blink example: Red LED should start blinking
+   - ADC example: Connect to serial monitor to see ADC values
 
 ### If Flash Fails
 
@@ -130,9 +181,11 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
 
 ---
 
-## What This Example Does
+## What the Examples Do
 
-The blink example toggles the on-board red LED (PF1) every 500 milliseconds using direct register access.
+**Example 1 (Blink)**: Toggles the on-board red LED (PF1) every 500 milliseconds using direct register access.
+
+**Example 2 (ADC)**: Reads analog input from PE3 (AIN0) every second and sends the value (0-4095) to the serial monitor at 115200 baud.
 
 ---
 
