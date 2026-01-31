@@ -1,161 +1,102 @@
 /*
- * ADC and UART example for TM4C123GXL Tiva C Launchpad
+ * ADC and UART example for TM4C123GXL
  * Reads analog input (PE3/AIN0) every second and sends to serial monitor
- * 
- * Hardware:
- * - ADC input: PE3 (AIN0) - connect potentiometer or analog sensor
- * - UART: UART0 on PA0 (RX) and PA1 (TX) - USB serial port
- * - Serial settings: 115200 baud, 8N1
+ * Hardware: PE3 (AIN0) for ADC, PA0/PA1 for UART, 115200 baud
  */
 
 #include <stdint.h>
 #include "tm4c123gh6pm.h"
 
-// Simple delay function (approximate, ~1 second at 80MHz)
 void delay_1s(void) {
     volatile uint32_t i;
-    for (i = 0; i < 8000000; i++);  // Approximate 1 second delay
+    for (i = 0; i < 8000000; i++);
 }
 
-// Initialize UART0 for serial communication
 void UART0_Init(void) {
-    // Enable clocks for UART0 and Port A
+    // Enable clocks
     SYSCTL_RCGCUART_R |= SYSCTL_RCGCUART_R0;
     SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R0;
-    
-    // Wait for clocks to stabilize
     volatile uint32_t dummy = SYSCTL_RCGCUART_R;
-    dummy = SYSCTL_RCGCGPIO_R;
     (void)dummy;
     
-    // Disable UART0 during configuration
-    UART0_CTL_R &= ~0x00000001;
-    
-    // Configure baud rate: 115200 (assuming 16MHz UART clock)
-    // IBRD = 16,000,000 / (16 * 115200) = 8.6805...
-    // FBRD = round(64 * 0.6805) = 44
-    // Note: UART clock is typically 16MHz by default (before PLL configuration)
-    UART0_IBRD_R = 8;
+    // Configure UART: 115200 baud, 8N1
+    UART0_CTL_R &= ~0x01;           // Disable during config
+    UART0_IBRD_R = 8;                // Baud rate divisor
     UART0_FBRD_R = 44;
+    UART0_LCRH_R = 0x70;             // 8 bits, 1 stop, no parity, FIFO
+    UART0_CTL_R |= 0x01;             // Enable UART
     
-    // Configure line control: 8 bits, 1 stop bit, no parity, FIFO enabled
-    UART0_LCRH_R = 0x00000070;
-    
-    // Configure Port A pins 0 and 1 for UART
-    GPIO_PORTA_AFSEL_R |= 0x03;      // Enable alternate function on PA0 and PA1
-    GPIO_PORTA_PCTL_R = (GPIO_PORTA_PCTL_R & 0xFFFFFF00) | 0x00000011;  // UART function
-    GPIO_PORTA_DEN_R |= 0x03;        // Enable digital function
-    
-    // Enable UART0
-    UART0_CTL_R |= 0x00000001;
+    // Configure PA0/PA1 for UART
+    GPIO_PORTA_AFSEL_R |= 0x03;
+    GPIO_PORTA_PCTL_R = (GPIO_PORTA_PCTL_R & 0xFFFFFF00) | 0x11;
+    GPIO_PORTA_DEN_R |= 0x03;
 }
 
-// Send a character via UART0
-void UART0_SendChar(char data) {
-    // Wait until transmit FIFO is not full
-    while (UART0_FR_R & 0x00000020);
-    UART0_DR_R = data;
+void UART0_SendChar(char c) {
+    while (UART0_FR_R & 0x20);       // Wait for TX ready
+    UART0_DR_R = c;
 }
 
-// Send a string via UART0
-void UART0_SendString(const char *str) {
-    while (*str) {
-        UART0_SendChar(*str);
-        str++;
-    }
+void UART0_SendString(const char *s) {
+    while (*s) UART0_SendChar(*s++);
 }
 
-// Convert number to string and send via UART
-void UART0_SendNumber(uint32_t num) {
-    char buffer[12];
+void UART0_SendNumber(uint32_t n) {
+    char buf[12];
     int i = 0;
     
-    if (num == 0) {
+    if (n == 0) {
         UART0_SendChar('0');
         return;
     }
     
-    // Convert to string (reverse order)
-    while (num > 0) {
-        buffer[i++] = '0' + (num % 10);
-        num /= 10;
+    while (n > 0) {
+        buf[i++] = '0' + (n % 10);
+        n /= 10;
     }
     
-    // Send in correct order
-    while (i > 0) {
-        UART0_SendChar(buffer[--i]);
-    }
+    while (i > 0) UART0_SendChar(buf[--i]);
 }
 
-// Initialize ADC0
 void ADC0_Init(void) {
-    // Enable clocks for ADC0 and Port E
+    // Enable clocks
     SYSCTL_RCGCADC_R |= SYSCTL_RCGCADC_R0;
     SYSCTL_RCGCGPIO_R |= SYSCTL_RCGCGPIO_R4;
-    
-    // Wait for clocks to stabilize
     volatile uint32_t dummy = SYSCTL_RCGCADC_R;
-    dummy = SYSCTL_RCGCGPIO_R;
     (void)dummy;
     
     // Configure PE3 (AIN0) for ADC
-    // For ADC: disable digital, enable analog, AFSEL not needed
-    GPIO_PORTE_AFSEL_R &= ~0x08;     // Clear alternate function (not needed for ADC)
-    GPIO_PORTE_DEN_R &= ~0x08;       // Disable digital function on PE3
-    GPIO_PORTE_AMSEL_R |= 0x08;      // Enable analog function on PE3
+    GPIO_PORTE_AFSEL_R &= ~0x08;
+    GPIO_PORTE_DEN_R &= ~0x08;
+    GPIO_PORTE_AMSEL_R |= 0x08;
     
-    // Disable ADC0 sequencer 0 during configuration
-    ADC0_ACTSS_R &= ~0x0001;
-    
-    // Configure sequencer 0 for single sample
-    ADC0_EMUX_R &= ~0x000F;          // Software trigger
-    ADC0_SSMUX0_R = 0x0000;          // Sample channel 0 (AIN0/PE3)
-    ADC0_SSCTL0_R = 0x0006;          // Single sample, end of sequence
-    
-    // Enable ADC0 sequencer 0
-    ADC0_ACTSS_R |= 0x0001;
+    // Configure ADC sequencer 0
+    ADC0_ACTSS_R &= ~0x01;           // Disable during config
+    ADC0_EMUX_R &= ~0x0F;            // Software trigger
+    ADC0_SSMUX0_R = 0;               // Channel 0 (AIN0)
+    ADC0_SSCTL0_R = 0x06;            // Single sample, end
+    ADC0_ACTSS_R |= 0x01;            // Enable sequencer
 }
 
-// Read ADC value (0-4095 for 12-bit ADC)
 uint32_t ADC0_Read(void) {
-    // Start conversion
-    ADC0_PSSI_R |= 0x0001;
-    
-    // Wait for conversion to complete
-    while ((ADC0_RIS_R & 0x0001) == 0);
-    
-    // Read result
+    ADC0_PSSI_R |= 0x01;             // Start conversion
+    while ((ADC0_RIS_R & 0x01) == 0); // Wait for done
     uint32_t result = ADC0_SSFIFO0_R & 0xFFF;
-    
-    // Clear interrupt flag
-    ADC0_ISC_R |= 0x0001;
-    
+    ADC0_ISC_R |= 0x01;               // Clear flag
     return result;
 }
 
 int main(void) {
-    // Initialize UART for serial communication
     UART0_Init();
-    
-    // Initialize ADC
     ADC0_Init();
     
-    // Send startup message
     UART0_SendString("\r\nADC Example Started\r\n");
-    UART0_SendString("Reading analog input on PE3 (AIN0)...\r\n");
-    UART0_SendString("Values (0-4095):\r\n");
+    UART0_SendString("Reading PE3 (AIN0)...\r\n");
     
-    // Main loop: read ADC and send to serial every second
     while (1) {
-        // Read ADC value
-        uint32_t adc_value = ADC0_Read();
-        
-        // Send to serial monitor
         UART0_SendString("ADC: ");
-        UART0_SendNumber(adc_value);
+        UART0_SendNumber(ADC0_Read());
         UART0_SendString("\r\n");
-        
-        // Wait 1 second
         delay_1s();
     }
     
