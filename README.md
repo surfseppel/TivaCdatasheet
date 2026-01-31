@@ -18,7 +18,8 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
 
 ```
 .
-├── Makefile              # Build configuration
+├── build.bat             # Windows build script
+├── flash.bat             # Windows flash script
 ├── src/
 │   ├── main.c           # Main application code
 │   ├── startup.c        # Startup code and vector table
@@ -30,138 +31,154 @@ This is a bare-metal development project for the TM4C123GXL Tiva C Launchpad usi
     └── tm4c123gh6pm.pdf # Datasheet
 ```
 
-## Prerequisites
+---
 
-1. **ARM GCC Toolchain**
-   - Download from: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain
-   - Or install via package manager:
-     - Windows: Use MSYS2 or install ARM GCC manually
-     - Linux: `sudo apt-get install gcc-arm-none-eabi`
-     - macOS: `brew install arm-none-eabi-gcc`
+## Windows Setup (One-Time)
 
-2. **Make** (usually pre-installed on Linux/macOS)
-   - Windows: Install via MSYS2 or use `mingw32-make`
+### Step 1: Install ARM GCC Toolchain
 
-3. **OpenOCD** (optional, for flashing)
-   - Download from: http://openocd.org/
-   - Or install via package manager
+1. **Download**: Go to https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+2. **Download**: **Windows (mingw-w64-x86_64)** → `arm-gnu-toolchain-15.2.rel1-mingw-w64-x86_64-arm-none-eabi.msi`
+   - For 32-bit Windows, use `mingw-w64-i686` version
+3. **Install**: Run the installer (use default settings)
+4. **Add to PATH**:
+   - Open **System Properties** → **Environment Variables**
+   - Under **User variables**, select **Path** → **Edit** → **New**
+   - Add: `C:\Program Files\Arm\GNU Toolchain\arm-none-eabi\15.2.rel1\bin`
+     - *(Or wherever the installer put it - look for the `bin` folder with `arm-none-eabi-gcc.exe`)*
+   - Click **OK** on all dialogs
+   - **Restart VS Code** (or your terminal)
+
+5. **Verify**: Open PowerShell and run:
+   ```powershell
+   arm-none-eabi-gcc --version
+   ```
+   You should see version information.
+
+### Step 2: Install OpenOCD (for Flashing)
+
+1. **Download**: Go to https://openocd.org/getting-openocd/
+   - Or use Chocolatey: `choco install openocd`
+2. **Install**: Extract to a folder (e.g., `C:\openocd`)
+3. **Add to PATH**: Add the `bin` folder to your PATH (same way as Step 1)
+   - Example: `C:\openocd\bin`
+4. **Verify**: 
+   ```powershell
+   openocd --version
+   ```
+
+### Step 3: Install Visual Studio Code (Optional)
+
+1. **Download**: https://code.visualstudio.com/
+2. **Install Extensions**:
+   - **C/C++** (by Microsoft)
+   - **Make** (any Make extension)
+
+---
 
 ## Building
 
-1. **Build the project**:
-   ```bash
-   make
+### Using build.bat (Easiest - No Make Required)
+
+1. **Open PowerShell** in the project folder
+2. **Add ARM GCC to PATH** (if not permanently added):
+   ```powershell
+   $env:Path += ";C:\Program Files\Arm\GNU Toolchain\arm-none-eabi\15.2.rel1\bin"
+   ```
+   *(Adjust path to match your installation)*
+
+3. **Build**:
+   ```powershell
+   .\build.bat
    ```
 
-2. **Clean build files**:
-   ```bash
-   make clean
-   ```
+4. **Output**: Files will be in `build/` folder:
+   - `build/blink.bin` - Ready to flash
 
-3. **View help**:
-   ```bash
-   make help
-   ```
+### Using Visual Studio Code
 
-The build process will create:
-- `build/blink.elf` - ELF executable
-- `build/blink.bin` - Binary file for flashing
-- `build/blink.map` - Memory map
+1. **Open project**: `code .`
+2. **Build**: Press **Ctrl+Shift+B**
+3. **Or use terminal**: Press **Ctrl+`** and run `.\build.bat`
+
+---
 
 ## Flashing
 
 ### Prerequisites
 
-1. **Connect your board**: Plug the TM4C123GXL into your computer via USB
-2. **Install drivers**: Windows should auto-install, but if not, download TI-ICDI drivers from TI's website
+1. **Connect board**: Plug TM4C123GXL into USB
+2. **Wait**: Windows should auto-install drivers
+3. **Check**: Open Device Manager, look for "Stellaris In-Circuit Debug Interface"
 
-### Option 1: Using OpenOCD (Recommended)
+### Flash the Board
 
-If you have OpenOCD installed:
+1. **Make sure you built the project first** (see Building section)
 
-**Using Make:**
-```bash
-make flash
-```
+2. **Run flash script**:
+   ```powershell
+   .\flash.bat
+   ```
 
-**Using batch file (Windows):**
-```powershell
-.\flash.bat
-```
+3. **Done!** The board will reset and the red LED should start blinking.
 
-**Manual command:**
-```bash
-openocd -f interface/ti-icdi.cfg -f target/stellaris.cfg -c "program build/blink.bin verify reset exit"
-```
+### If Flash Fails
 
-### Option 2: Using LM Flash Programmer
+- **Board not detected**: Install drivers from https://www.ti.com/tool/STELLARIS_ICDI_DRIVERS
+- **OpenOCD not found**: Make sure OpenOCD is installed and in PATH
+- **Try again**: Unplug and replug the USB cable, then run `.\flash.bat` again
 
-1. Download from: https://www.ti.com/tool/LMFLASHPROGRAMMER
-2. Connect your board via USB
-3. Load `build/blink.bin` and click "Program"
-
-### Option 3: Using Code Composer Studio
-
-1. Import the project into CCS
-2. Build and flash using the built-in debugger
+---
 
 ## What This Example Does
 
-The blink example toggles the on-board red LED (PF1) every 500 milliseconds using direct register access. The code:
+The blink example toggles the on-board red LED (PF1) every 500 milliseconds using direct register access.
 
-1. Enables the clock to Port F
-2. Configures PF1 as an output
-3. Toggles the LED in a loop
+---
 
-## Understanding the Code
+## Troubleshooting
 
-### Register Access
+**"arm-none-eabi-gcc not found"**
+- ARM GCC is not in PATH
+- Add it to PATH (see Setup Step 1) and restart VS Code/terminal
 
-All hardware registers are accessed directly through memory-mapped I/O. The register definitions in `inc/tm4c123gh6pm.h` are based on the datasheet memory map.
+**"build/blink.bin not found"**
+- Build the project first: `.\build.bat`
 
-### Key Registers Used
+**"OpenOCD not found"**
+- Install OpenOCD and add to PATH (see Setup Step 2)
 
-- `SYSCTL_RCGCGPIO_R`: System control register to enable GPIO port clocks
-- `GPIO_PORTF_DIR_R`: GPIO direction register (input/output)
-- `GPIO_PORTF_DEN_R`: GPIO digital enable register
-- `GPIO_PORTF_DATA_R`: GPIO data register (read/write pin state)
+**Board not detected**
+- Install TI-ICDI drivers from TI's website
+- Check Device Manager for the board
 
-### Using the Datasheet
+**LED doesn't blink**
+- Press the reset button on the board
+- Verify flash completed successfully
 
-Refer to `docs/tm4c123gh6pm.pdf` for:
-- Complete register map and bit definitions
-- Peripheral configuration details
-- Memory map
-- Clock configuration
-- Interrupt vectors
+---
 
 ## Customization
 
-To use different LEDs or pins:
+To use different LEDs, modify `src/main.c`:
 
-1. Check the datasheet for the pin's port and bit number
-2. Modify the register access in `main.c`
-3. Enable the appropriate port clock in `SYSCTL_RCGCGPIO_R`
-
-Example for Blue LED (PF2):
+**Blue LED (PF2):**
 ```c
 GPIO_PORTF_DIR_R |= (1 << 2);   // Set PF2 as output
 GPIO_PORTF_DEN_R |= (1 << 2);   // Enable digital function
 GPIO_PORTF_DATA_R |= (1 << 2);  // Turn on
 ```
 
-## Troubleshooting
+**Green LED (PF3):**
+```c
+GPIO_PORTF_DIR_R |= (1 << 3);   // Set PF3 as output
+GPIO_PORTF_DEN_R |= (1 << 3);   // Enable digital function
+GPIO_PORTF_DATA_R |= (1 << 3);  // Turn on
+```
 
-- **Build fails**: Check that ARM GCC is in your PATH
-- **Flash fails**: Ensure board is connected and drivers are installed
-- **LED doesn't blink**: Check connections and verify the correct pin is configured
-- **Linker errors**: Verify the linker script matches your memory layout
+---
 
-## Next Steps
+## Reference
 
-- Add more peripherals (UART, SPI, I2C, timers, etc.)
-- Configure system clock to 80MHz
-- Add interrupt handlers
-- Implement more complex functionality
-
-Refer to the datasheet for detailed register descriptions and peripheral configurations.
+- **Datasheet**: See `docs/tm4c123gh6pm.pdf` for complete register map and peripheral details
+- **Register definitions**: See `inc/tm4c123gh6pm.h` for hardware register addresses
