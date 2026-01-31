@@ -1,0 +1,9 @@
+build/
+*.o
+*.elf
+*.bin
+*.map
+.vscode/*
+!.vscode/tasks.json
+*.pyc
+__pycache__
